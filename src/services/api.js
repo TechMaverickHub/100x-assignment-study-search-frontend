@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { BASE_URL, LOGIN_API_URL, API_ENDPOINTS } from '../constants';
+import { BASE_URL, LOGIN_API_URL, SIGNUP_API_URL, API_ENDPOINTS } from '../constants';
 
 // Create axios instance with base URL
 const api = axios.create({
@@ -61,6 +61,17 @@ export const authAPI = {
     const response = await axios.post(LOGIN_API_URL, {
       email,
       password,
+    });
+    return response.data;
+  },
+
+  // Sign up with email, password, and other details (uses BASE_URL + SIGNUP_URL)
+  signup: async (email, password, firstName, lastName) => {
+    const response = await axios.post(SIGNUP_API_URL, {
+      email,
+      password,
+      first_name: firstName,
+      last_name: lastName,
     });
     return response.data;
   },

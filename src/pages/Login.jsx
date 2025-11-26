@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 import { BookOpen, AlertCircle, Loader2 } from 'lucide-react';
@@ -123,7 +123,19 @@ const Login = () => {
           </button>
         </form>
 
-        <p className="mt-6 text-sm text-gray-500 text-center">
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <p className="text-sm text-gray-500 text-center mb-4">
+            Don't have an account?
+          </p>
+          <Link
+            to="/signup"
+            className="block w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium border border-gray-300 text-center"
+          >
+            Sign Up
+          </Link>
+        </div>
+
+        <p className="mt-4 text-sm text-gray-500 text-center">
           Enter your email and password to access StudySearch.
         </p>
       </div>
