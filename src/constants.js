@@ -12,6 +12,7 @@ export const API_ENDPOINTS = {
   FILE_UPLOAD: 'filesearch/upload/',
   FILE_QUERY: 'filesearch/query/',
   FILE_STORES_LIST: 'filesearch/stores/list/',
+  FILE_STORES_LIST_FILTER: 'filesearch/stores/list-filter/',
   PERSONALIZATION_PREFERENCES: 'personalization/preferences/',
   EVALUATION_RAGAS: 'evaluation/ragas/',
   EVALUATION_METRICS: 'evaluation/metrics/',

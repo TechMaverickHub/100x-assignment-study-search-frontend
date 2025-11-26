@@ -86,10 +86,11 @@ export const authAPI = {
 
 // File Search APIs
 export const fileSearchAPI = {
-  // Upload PDF
-  uploadPDF: async (file) => {
+  // Upload PDF with title
+  uploadPDF: async (file, title = '') => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('title', title || file.name || 'Untitled Document');
     const response = await api.post(API_ENDPOINTS.FILE_UPLOAD, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -98,18 +99,30 @@ export const fileSearchAPI = {
     return response.data;
   },
 
-  // Query document
-  query: async (query, storeName = null) => {
+  // Query document by document_id
+  query: async (query, documentId) => {
     const response = await api.post(API_ENDPOINTS.FILE_QUERY, {
       query,
-      store_name: storeName,
+      document_id: documentId,
     });
     return response.data;
   },
 
-  // List all stores
+  // List all stores (legacy - non-paginated)
   listStores: async () => {
     const response = await api.get(API_ENDPOINTS.FILE_STORES_LIST);
+    return response.data;
+  },
+
+  // List stores with pagination and filters
+  listStoresFiltered: async (page = 1, pageSize = 10, title = '') => {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('page_size', pageSize.toString());
+    if (title) {
+      params.append('title', title);
+    }
+    const response = await api.get(`${API_ENDPOINTS.FILE_STORES_LIST_FILTER}?${params.toString()}`);
     return response.data;
   },
 };
