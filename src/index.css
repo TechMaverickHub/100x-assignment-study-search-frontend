@@ -4,25 +4,46 @@
 
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-[#343541] text-gray-100;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  }
+  
+  * {
+    @apply border-gray-700;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors font-medium;
+    @apply bg-[#10a37f] text-white px-4 py-2 rounded-lg hover:bg-[#0d8f6e] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed;
   }
   
   .btn-secondary {
-    @apply bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors font-medium;
+    @apply bg-[#565869] text-white px-4 py-2 rounded-lg hover:bg-[#4a4c5a] transition-colors font-medium;
   }
   
   .input-field {
-    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none;
+    @apply w-full px-4 py-2 bg-[#40414f] border border-[#565869] rounded-lg text-gray-100 placeholder-gray-400 focus:ring-2 focus:ring-[#10a37f] focus:border-transparent outline-none;
   }
   
   .card {
-    @apply bg-white rounded-lg shadow-md p-6;
+    @apply bg-[#40414f] rounded-lg p-6;
+  }
+  
+  .message-user {
+    @apply bg-[#343541] text-gray-100;
+  }
+  
+  .message-assistant {
+    @apply bg-[#444654] text-gray-100;
+  }
+  
+  .sidebar-item {
+    @apply flex items-center space-x-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-[#2a2b32] transition-colors cursor-pointer;
+  }
+  
+  .sidebar-item-active {
+    @apply bg-[#2a2b32] text-white;
   }
 }
 

@@ -12,28 +12,33 @@ const Layout = ({ children }) => {
     navigate('/login');
   };
 
+  // For UserDashboard, don't wrap in layout (it has its own full-screen layout)
+  if (location.pathname === '/' && !isAdmin()) {
+    return children;
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#343541]">
       {/* Navigation Bar */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
+      <nav className="bg-[#202123] border-b border-[#565869]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <BookOpen className="h-8 w-8 text-primary-600 mr-3" />
-              <h1 className="text-xl font-bold text-gray-900">StudySearch</h1>
+              <BookOpen className="h-8 w-8 text-[#10a37f] mr-3" />
+              <h1 className="text-xl font-bold text-gray-100">StudySearch</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-300">
                 Welcome, <span className="font-medium">{user?.fullName || user?.firstName || user?.email || 'User'}</span>
               </span>
               {isAdmin() && (
-                <span className="px-2 py-1 text-xs font-semibold bg-purple-100 text-purple-800 rounded">
+                <span className="px-2 py-1 text-xs font-semibold bg-purple-600 text-white rounded">
                   Admin
                 </span>
               )}
               <button
                 onClick={handleLogout}
-                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+                className="flex items-center space-x-2 text-gray-300 hover:text-gray-100 transition-colors"
               >
                 <LogOut className="h-5 w-5" />
                 <span>Logout</span>
@@ -45,14 +50,14 @@ const Layout = ({ children }) => {
 
       {/* Sidebar */}
       <div className="flex">
-        <aside className="w-64 bg-white shadow-sm min-h-[calc(100vh-4rem)] border-r border-gray-200">
+        <aside className="w-64 bg-[#202123] min-h-[calc(100vh-4rem)] border-r border-[#565869]">
           <nav className="p-4 space-y-2">
             {!isAdmin() ? (
               <>
                 <NavLink
                   to="/"
                   icon={<FileText className="h-5 w-5" />}
-                  label="Documents"
+                  label="Chat"
                   active={location.pathname === '/'}
                 />
                 <NavLink
@@ -96,8 +101,8 @@ const NavLink = ({ to, icon, label, active }) => {
       onClick={() => navigate(to)}
       className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
         active
-          ? 'bg-primary-50 text-primary-700 font-medium'
-          : 'text-gray-700 hover:bg-gray-50'
+          ? 'bg-[#2a2b32] text-white font-medium'
+          : 'text-gray-300 hover:bg-[#2a2b32]'
       }`}
     >
       {icon}

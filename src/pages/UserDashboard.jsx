@@ -1,42 +1,39 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { fileSearchAPI } from '../services/api';
-import { Upload, Search, FileText, Loader2, AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { Upload, Send, FileText, Loader2, Plus, Menu, X, Settings, MessageSquare } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const UserDashboard = () => {
-  const [stores, setStores] = useState([]);
-  const [selectedStore, setSelectedStore] = useState(null);
+  const { user } = useAuth();
+  const [messages, setMessages] = useState([]);
   const [query, setQuery] = useState('');
-  const [answer, setAnswer] = useState(null);
-  const [citations, setCitations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null);
-  const [queryHistory, setQueryHistory] = useState([]);
   const [uploadTitle, setUploadTitle] = useState('');
-  
-  // Pagination and filtering state for stores list
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(10);
-  const [totalCount, setTotalCount] = useState(0);
-  const [hasNext, setHasNext] = useState(false);
-  const [hasPrevious, setHasPrevious] = useState(false);
-  const [titleFilter, setTitleFilter] = useState('');
-  const [isLoadingStores, setIsLoadingStores] = useState(false);
-
-  // Document dropdown state (for query selection)
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [documentOptions, setDocumentOptions] = useState([]);
   const [documentFilter, setDocumentFilter] = useState('');
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
   const [selectedDocumentId, setSelectedDocumentId] = useState(null);
+  const [selectedDocumentTitle, setSelectedDocumentTitle] = useState(null);
+  const [conversations, setConversations] = useState([]);
+  const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
 
-  useEffect(() => {
-    loadStores();
-  }, [currentPage, titleFilter]);
-
-  // Load documents for dropdown (separate from stores list)
   useEffect(() => {
     loadDocumentOptions();
   }, [documentFilter]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const loadDocumentOptions = async () => {
     setIsLoadingDocuments(true);
@@ -45,37 +42,15 @@ const UserDashboard = () => {
       const documents = data.results || [];
       setDocumentOptions(documents);
       
-      // Auto-select first document if available and none selected
       if (documents.length > 0 && !selectedDocumentId) {
         setSelectedDocumentId(documents[0].id);
+        setSelectedDocumentTitle(documents[0].title);
       }
     } catch (error) {
       console.error('Error loading documents:', error);
       setDocumentOptions([]);
     } finally {
       setIsLoadingDocuments(false);
-    }
-  };
-
-  const loadStores = async () => {
-    setIsLoadingStores(true);
-    try {
-      const data = await fileSearchAPI.listStoresFiltered(currentPage, pageSize, titleFilter);
-      const storesList = data.results || [];
-      setStores(storesList);
-      setTotalCount(data.count || 0);
-      setHasNext(data.next !== null);
-      setHasPrevious(data.previous !== null);
-      
-      // Auto-select first store if available and none selected
-      if (storesList.length > 0 && !selectedStore) {
-        setSelectedStore(storesList[0].id);
-      }
-    } catch (error) {
-      console.error('Error loading stores:', error);
-      setStores([]);
-    } finally {
-      setIsLoadingStores(false);
     }
   };
 
@@ -93,16 +68,13 @@ const UserDashboard = () => {
       const response = await fileSearchAPI.uploadPDF(file, uploadTitle);
       setUploadStatus({ 
         type: 'success', 
-        message: response.message || 'PDF uploaded and processed successfully!' 
+        message: response.message || 'PDF uploaded successfully!' 
       });
-      setUploadTitle(''); // Reset title after successful upload
-      e.target.value = ''; // Reset file input
-      // Reset to first page and reload stores
-      setCurrentPage(1);
-      await loadStores();
-      // Also reload document options for dropdown
+      setUploadTitle('');
+      e.target.value = '';
+      setShowUploadModal(false);
       await loadDocumentOptions();
-      setTimeout(() => setUploadStatus(null), 5000);
+      setTimeout(() => setUploadStatus(null), 3000);
     } catch (error) {
       setUploadStatus({
         type: 'error',
@@ -117,361 +89,466 @@ const UserDashboard = () => {
     e.preventDefault();
     if (!query.trim() || !selectedDocumentId) return;
 
+    const userMessage = query.trim();
+    setQuery('');
+    
+    // Add user message
+    const newUserMessage = {
+      id: Date.now(),
+      role: 'user',
+      content: userMessage,
+      timestamp: new Date(),
+    };
+    
+    setMessages((prev) => [...prev, newUserMessage]);
     setIsLoading(true);
-    setAnswer(null);
-    setCitations([]);
 
     try {
-      const response = await fileSearchAPI.query(query, selectedDocumentId);
-      
-      // Handle new response structure
+      const response = await fileSearchAPI.query(userMessage, selectedDocumentId);
       const responseData = response.results || response;
-      setAnswer(responseData.response_text || responseData.answer || responseData.response || 'No answer found');
-      setCitations(responseData.grounding_chunks || responseData.citations || responseData.retrieved_context || []);
+      const assistantMessage = {
+        id: Date.now() + 1,
+        role: 'assistant',
+        content: responseData.response_text || responseData.answer || responseData.response || 'No answer found',
+        citations: responseData.grounding_chunks || responseData.citations || [],
+        timestamp: new Date(),
+      };
       
-      // Add to query history
-      setQueryHistory((prev) => [
-        { 
-          query, 
-          answer: responseData.response_text || responseData.answer || responseData.response, 
-          timestamp: new Date() 
-        },
-        ...prev.slice(0, 9),
-      ]);
+      setMessages((prev) => [...prev, assistantMessage]);
+      
+      // Save to conversations
+      const conversation = {
+        id: Date.now(),
+        title: userMessage.substring(0, 50),
+        messages: [newUserMessage, assistantMessage],
+        documentId: selectedDocumentId,
+        documentTitle: selectedDocumentTitle,
+        timestamp: new Date(),
+      };
+      setConversations((prev) => [conversation, ...prev.slice(0, 19)]);
     } catch (error) {
-      setAnswer('Error: ' + (error.response?.data?.detail || error.response?.data?.message || 'Failed to process query'));
+      const errorMessage = {
+        id: Date.now() + 1,
+        role: 'assistant',
+        content: 'Error: ' + (error.response?.data?.detail || error.response?.data?.message || 'Failed to process query'),
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+    }
+  };
+
+  const startNewConversation = () => {
+    setMessages([]);
+    setQuery('');
+  };
+
+  const loadConversation = (conversation) => {
+    setMessages(conversation.messages);
+    setSelectedDocumentId(conversation.documentId);
+    setSelectedDocumentTitle(conversation.documentTitle);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!isLoading && query.trim() && selectedDocumentId) {
+        handleQuery(e);
+      }
+    }
+  };
+
+  const adjustTextareaHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">User Dashboard</h1>
-        <p className="text-gray-600 mt-2">Upload PDFs and query your lecture materials</p>
-      </div>
+    <div className="flex h-screen bg-[#343541] overflow-hidden">
+      {/* Sidebar */}
+      <div className={`${showSidebar ? 'w-64' : 'w-0'} transition-all duration-300 bg-[#202123] border-r border-[#565869] flex flex-col overflow-hidden`}>
+        <div className="p-3 border-b border-[#565869]">
+          <button
+            onClick={startNewConversation}
+            className="w-full flex items-center space-x-2 px-3 py-2.5 bg-[#565869] hover:bg-[#4a4c5a] rounded-lg text-white transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            <span>New Chat</span>
+          </button>
+        </div>
 
-      {/* Upload Section */}
-      <div className="card">
-        <h2 className="text-xl font-semibold mb-4 flex items-center">
-          <Upload className="h-5 w-5 mr-2" />
-          Upload PDF
-        </h2>
-        <div className="space-y-4">
-          {/* Title Input */}
-          <div>
-            <label htmlFor="upload-title" className="block text-sm font-medium text-gray-700 mb-2">
-              Document Title (optional)
-            </label>
-            <input
-              id="upload-title"
-              type="text"
-              value={uploadTitle}
-              onChange={(e) => setUploadTitle(e.target.value)}
-              placeholder="Enter a title for this document..."
-              className="input-field"
-              disabled={isUploading}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              If left empty, the filename will be used as the title
-            </p>
-          </div>
-
-          {/* File Upload */}
-          <label className="block">
-            <input
-              type="file"
-              accept=".pdf"
-              onChange={handleFileUpload}
-              disabled={isUploading}
-              className="hidden"
-              id="pdf-upload"
-            />
-            <div className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary-500 transition-colors">
-              {isUploading ? (
-                <div className="flex items-center space-x-2 text-primary-600">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Uploading and processing...</span>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                  <span className="text-gray-600">Click to upload PDF</span>
-                </div>
-              )}
-            </div>
-          </label>
-
-          {uploadStatus && (
-            <div
-              className={`flex items-center space-x-2 p-3 rounded-lg ${
-                uploadStatus.type === 'success'
-                  ? 'bg-green-50 text-green-800'
-                  : 'bg-red-50 text-red-800'
-              }`}
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {conversations.map((conv) => (
+            <button
+              key={conv.id}
+              onClick={() => loadConversation(conv)}
+              className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[#2a2b32] text-gray-300 text-sm truncate transition-colors"
             >
-              {uploadStatus.type === 'success' ? (
-                <CheckCircle className="h-5 w-5" />
-              ) : (
-                <AlertCircle className="h-5 w-5" />
-              )}
-              <span>{uploadStatus.message}</span>
-            </div>
+              <div className="flex items-center space-x-2">
+                <MessageSquare className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate">{conv.title}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Document Selector */}
+        <div className="p-3 border-t border-[#565869] space-y-2">
+          <div className="text-xs text-gray-400 mb-2 px-2">Current Document</div>
+          {selectedDocumentTitle ? (
+            <button
+              onClick={() => setShowDocumentModal(true)}
+              className="w-full px-3 py-2 bg-[#2a2b32] hover:bg-[#343541] rounded-lg text-sm text-gray-300 flex items-center space-x-2 transition-colors"
+            >
+              <FileText className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">{selectedDocumentTitle}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowDocumentModal(true)}
+              className="w-full px-3 py-2 bg-[#2a2b32] hover:bg-[#343541] rounded-lg text-sm text-gray-500 transition-colors"
+            >
+              Select Document
+            </button>
           )}
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="w-full flex items-center space-x-2 px-3 py-2 bg-[#565869] hover:bg-[#4a4c5a] rounded-lg text-white text-sm transition-colors"
+          >
+            <Upload className="h-4 w-4" />
+            <span>Upload PDF</span>
+          </button>
+        </div>
+
+        {/* User Info */}
+        <div className="p-3 border-t border-[#565869]">
+          <div className="flex items-center space-x-2 px-2 py-1.5 text-sm text-gray-400">
+            <div className="h-6 w-6 rounded-full bg-[#10a37f] flex items-center justify-center text-white text-xs font-medium">
+              {user?.firstName?.[0] || user?.email?.[0] || 'U'}
+            </div>
+            <span className="truncate">{user?.fullName || user?.firstName || user?.email || 'User'}</span>
+          </div>
         </div>
       </div>
 
-      {/* Stores Selection with Pagination and Filter */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold flex items-center">
-            <FileText className="h-5 w-5 mr-2" />
-            Documents ({totalCount})
-          </h2>
-        </div>
-
-        {/* Title Filter */}
-        <div className="mb-4">
-          <label htmlFor="title-filter" className="block text-sm font-medium text-gray-700 mb-2">
-            <Filter className="h-4 w-4 inline mr-1" />
-            Filter by Title
-          </label>
-          <div className="flex space-x-2">
-            <input
-              id="title-filter"
-              type="text"
-              value={titleFilter}
-              onChange={(e) => {
-                setTitleFilter(e.target.value);
-                setCurrentPage(1); // Reset to first page when filtering
-              }}
-              placeholder="Search by title..."
-              className="input-field flex-1"
-            />
-            {titleFilter && (
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col h-screen">
+        {/* Header */}
+        <div className="h-12 bg-[#343541] border-b border-[#565869] flex items-center justify-between px-4">
+          <button
+            onClick={() => setShowSidebar(!showSidebar)}
+            className="p-2 hover:bg-[#40414f] rounded-lg transition-colors"
+          >
+            {showSidebar ? <X className="h-5 w-5 text-gray-400" /> : <Menu className="h-5 w-5 text-gray-400" />}
+          </button>
+          <div className="flex items-center space-x-2">
+            {selectedDocumentTitle ? (
               <button
-                onClick={() => {
-                  setTitleFilter('');
-                  setCurrentPage(1);
-                }}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50"
+                onClick={() => setShowDocumentModal(true)}
+                className="flex items-center space-x-2 px-3 py-1 bg-[#40414f] hover:bg-[#565869] rounded-lg transition-colors"
               >
-                Clear
+                <FileText className="h-4 w-4 text-gray-400" />
+                <span className="text-sm text-gray-300">{selectedDocumentTitle}</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowDocumentModal(true)}
+                className="px-3 py-1 bg-[#40414f] hover:bg-[#565869] rounded-lg text-sm text-gray-300 transition-colors"
+              >
+                Select Document
               </button>
             )}
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="p-2 hover:bg-[#40414f] rounded-lg transition-colors"
+              title="Upload PDF"
+            >
+              <Upload className="h-5 w-5 text-gray-400" />
+            </button>
           </div>
         </div>
 
-        {/* Loading State */}
-        {isLoadingStores ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-primary-600 mr-2" />
-            <span className="text-gray-600">Loading documents...</span>
-          </div>
-        ) : stores.length > 0 ? (
-          <>
-            {/* Stores List */}
-            <div className="space-y-2 mb-4">
-              {stores.map((store) => (
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto">
+          {messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center max-w-2xl px-4">
+                <h1 className="text-4xl font-semibold text-gray-200 mb-4">StudySearch</h1>
+                <p className="text-gray-400 text-lg mb-8">
+                  Ask questions about your uploaded documents. Select a document from the sidebar to get started.
+                </p>
+                {!selectedDocumentId && (
+                  <div className="bg-[#40414f] rounded-lg p-4 text-left">
+                    <p className="text-gray-300 mb-2">No document selected</p>
+                    <button
+                      onClick={() => setShowUploadModal(true)}
+                      className="text-[#10a37f] hover:underline"
+                    >
+                      Upload a PDF to get started
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-3xl mx-auto px-4 py-8">
+              {messages.map((message) => (
                 <div
-                  key={store.id}
-                  onClick={() => setSelectedStore(store.id)}
-                  className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                    selectedStore === store.id
-                      ? 'border-primary-500 bg-primary-50'
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                  }`}
+                  key={message.id}
+                  className={`message-${message.role} py-6`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <FileText className="h-5 w-5 text-gray-400" />
-                      <div>
-                        <p className="font-medium text-gray-900">{store.title}</p>
-                        <p className="text-xs text-gray-500">ID: {store.id}</p>
-                      </div>
+                  <div className="flex items-start space-x-4 max-w-3xl mx-auto">
+                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                      message.role === 'user' ? 'bg-[#10a37f]' : 'bg-[#19c37d]'
+                    }`}>
+                      {message.role === 'user' ? (
+                        <span className="text-white text-sm font-medium">
+                          {user?.firstName?.[0] || user?.email?.[0] || 'U'}
+                        </span>
+                      ) : (
+                        <span className="text-white text-lg">AI</span>
+                      )}
                     </div>
-                    {selectedStore === store.id && (
-                      <CheckCircle className="h-5 w-5 text-primary-600" />
-                    )}
+                    <div className="flex-1">
+                      <div className="prose prose-invert max-w-none">
+                        <div className="text-gray-100 whitespace-pre-wrap leading-relaxed">
+                          {message.content}
+                        </div>
+                      </div>
+                      {message.citations && message.citations.length > 0 && (
+                        <div className="mt-4 space-y-2">
+                          <div className="text-xs text-gray-400 mb-2">Sources:</div>
+                          {message.citations.slice(0, 3).map((citation, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-[#40414f] p-3 rounded-lg text-sm text-gray-300 border border-[#565869]"
+                            >
+                              <p className="whitespace-pre-wrap line-clamp-3">
+                                {typeof citation === 'string' ? citation : citation.text || citation.content}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
-            </div>
-
-            {/* Pagination Controls */}
-            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-              <div className="text-sm text-gray-600">
-                Showing {stores.length} of {totalCount} documents
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                  disabled={!hasPrevious || isLoadingStores}
-                  className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  <span>Previous</span>
-                </button>
-                <span className="px-4 py-2 text-sm text-gray-700">
-                  Page {currentPage}
-                </span>
-                <button
-                  onClick={() => setCurrentPage((prev) => prev + 1)}
-                  disabled={!hasNext || isLoadingStores}
-                  className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
-                >
-                  <span>Next</span>
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-            <p>{titleFilter ? 'No documents found matching your filter.' : 'No documents uploaded yet.'}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Query Section */}
-      <div className="card">
-        <h2 className="text-xl font-semibold mb-4 flex items-center">
-          <Search className="h-5 w-5 mr-2" />
-          Ask a Question
-        </h2>
-        <form onSubmit={handleQuery} className="space-y-4">
-          {/* Document Selection Dropdown with Filter */}
-          <div>
-            <label htmlFor="document-select" className="block text-sm font-medium text-gray-700 mb-2">
-              <FileText className="h-4 w-4 inline mr-1" />
-              Select Document
-            </label>
-            
-            {/* Document Filter Input */}
-            <div className="mb-2">
-              <input
-                type="text"
-                value={documentFilter}
-                onChange={(e) => setDocumentFilter(e.target.value)}
-                placeholder="Filter documents by title..."
-                className="input-field text-sm"
-                disabled={isLoadingDocuments}
-              />
-            </div>
-
-            {/* Document Dropdown */}
-            {isLoadingDocuments ? (
-              <div className="flex items-center space-x-2 py-2">
-                <Loader2 className="h-4 w-4 animate-spin text-primary-600" />
-                <span className="text-sm text-gray-600">Loading documents...</span>
-              </div>
-            ) : (
-              <select
-                id="document-select"
-                value={selectedDocumentId || ''}
-                onChange={(e) => setSelectedDocumentId(Number(e.target.value))}
-                className="input-field"
-                disabled={isLoading || documentOptions.length === 0}
-              >
-                <option value="">Select a document...</option>
-                {documentOptions.map((doc) => (
-                  <option key={doc.id} value={doc.id}>
-                    {doc.title}
-                  </option>
-                ))}
-              </select>
-            )}
-            
-            {documentOptions.length === 0 && !isLoadingDocuments && (
-              <p className="text-xs text-gray-500 mt-1">
-                {documentFilter ? 'No documents found matching your filter.' : 'No documents available. Upload a PDF first.'}
-              </p>
-            )}
-          </div>
-
-          {/* Query Input */}
-          <div>
-            <label htmlFor="query-input" className="block text-sm font-medium text-gray-700 mb-2">
-              Your Question
-            </label>
-            <textarea
-              id="query-input"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Enter your question about the document..."
-              className="input-field min-h-[100px] resize-none"
-              disabled={isLoading || !selectedDocumentId}
-            />
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isLoading || !query.trim() || !selectedDocumentId}
-            className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center">
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Processing...
-              </span>
-            ) : (
-              'Search'
-            )}
-          </button>
-        </form>
-      </div>
-
-      {/* Answer Section */}
-      {answer && (
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Answer</h2>
-          <div className="prose max-w-none">
-            <p className="text-gray-800 whitespace-pre-wrap">{answer}</p>
-          </div>
-
-          {/* Citations */}
-          {citations.length > 0 && (
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <h3 className="text-lg font-semibold mb-3">Grounding Chunks</h3>
-              <div className="space-y-3">
-                {citations.map((citation, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-gray-50 p-4 rounded-lg border border-gray-200"
-                  >
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                      {typeof citation === 'string' 
-                        ? citation 
-                        : citation.text || citation.content || JSON.stringify(citation)}
-                    </p>
-                    {citation.page && (
-                      <p className="text-xs text-gray-500 mt-2">Page: {citation.page}</p>
-                    )}
+              {isLoading && (
+                <div className="message-assistant py-6">
+                  <div className="flex items-start space-x-4 max-w-3xl mx-auto">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#19c37d] flex items-center justify-center">
+                      <span className="text-white text-lg">AI</span>
+                    </div>
+                    <div className="flex-1">
+                      <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                    </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
             </div>
           )}
         </div>
+
+        {/* Input Area */}
+        <div className="border-t border-[#565869] bg-[#343541]">
+          <div className="max-w-3xl mx-auto p-4">
+            {!selectedDocumentId && (
+              <div className="mb-3 p-3 bg-[#40414f] rounded-lg text-sm text-gray-300">
+                Please select a document from the sidebar to start chatting.
+              </div>
+            )}
+            <form onSubmit={handleQuery} className="relative">
+              <textarea
+                ref={textareaRef}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  adjustTextareaHeight();
+                }}
+                onKeyDown={handleKeyDown}
+                placeholder={selectedDocumentId ? "Message StudySearch..." : "Select a document first..."}
+                className="w-full px-4 py-3 pr-12 bg-[#40414f] border border-[#565869] rounded-lg text-gray-100 placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-transparent max-h-[200px]"
+                disabled={isLoading || !selectedDocumentId}
+                rows={1}
+              />
+              <button
+                type="submit"
+                disabled={isLoading || !query.trim() || !selectedDocumentId}
+                className="absolute right-2 bottom-2 p-2 bg-[#10a37f] hover:bg-[#0d8f6e] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-white" />
+                ) : (
+                  <Send className="h-5 w-5 text-white" />
+                )}
+              </button>
+            </form>
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              StudySearch can make mistakes. Check important info.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-[#40414f] rounded-lg p-6 max-w-md w-full mx-4 border border-[#565869]">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-100">Upload PDF</h2>
+              <button
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setUploadStatus(null);
+                }}
+                className="text-gray-400 hover:text-gray-200"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Document Title (optional)
+                </label>
+                <input
+                  type="text"
+                  value={uploadTitle}
+                  onChange={(e) => setUploadTitle(e.target.value)}
+                  placeholder="Enter a title..."
+                  className="input-field"
+                  disabled={isUploading}
+                />
+              </div>
+
+              <label className="block">
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={handleFileUpload}
+                  disabled={isUploading}
+                  className="hidden"
+                  id="pdf-upload"
+                />
+                <div className="flex items-center justify-center w-full h-32 border-2 border-dashed border-[#565869] rounded-lg cursor-pointer hover:border-[#10a37f] transition-colors">
+                  {isUploading ? (
+                    <div className="flex items-center space-x-2 text-[#10a37f]">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>Uploading...</span>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                      <span className="text-gray-300">Click to upload PDF</span>
+                    </div>
+                  )}
+                </div>
+              </label>
+
+              {uploadStatus && (
+                <div
+                  className={`p-3 rounded-lg text-sm ${
+                    uploadStatus.type === 'success'
+                      ? 'bg-green-900/30 text-green-300'
+                      : 'bg-red-900/30 text-red-300'
+                  }`}
+                >
+                  {uploadStatus.message}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* Query History */}
-      {queryHistory.length > 0 && (
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Recent Queries</h2>
-          <div className="space-y-3">
-            {queryHistory.map((item, idx) => (
-              <div key={idx} className="border-l-4 border-primary-500 pl-4 py-2">
-                <p className="font-medium text-gray-900">{item.query}</p>
-                <p className="text-sm text-gray-600 mt-1">{item.answer}</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {item.timestamp.toLocaleTimeString()}
-                </p>
+      {/* Document Selector Modal */}
+      {showDocumentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-[#40414f] rounded-lg p-6 max-w-md w-full mx-4 border border-[#565869] max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-100">Select Document</h2>
+              <button
+                onClick={() => setShowDocumentModal(false)}
+                className="text-gray-400 hover:text-gray-200"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto space-y-3">
+              <div>
+                <input
+                  type="text"
+                  value={documentFilter}
+                  onChange={(e) => setDocumentFilter(e.target.value)}
+                  placeholder="Filter documents by title..."
+                  className="input-field text-sm"
+                  disabled={isLoadingDocuments}
+                />
               </div>
-            ))}
+
+              {isLoadingDocuments ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-[#10a37f]" />
+                  <span className="ml-2 text-gray-300">Loading documents...</span>
+                </div>
+              ) : documentOptions.length > 0 ? (
+                <div className="space-y-2">
+                  {documentOptions.map((doc) => (
+                    <button
+                      key={doc.id}
+                      onClick={() => {
+                        setSelectedDocumentId(doc.id);
+                        setSelectedDocumentTitle(doc.title);
+                        setShowDocumentModal(false);
+                        setDocumentFilter('');
+                      }}
+                      className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
+                        selectedDocumentId === doc.id
+                          ? 'bg-[#10a37f] text-white'
+                          : 'bg-[#2a2b32] text-gray-300 hover:bg-[#343541]'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <FileText className="h-5 w-5 flex-shrink-0" />
+                        <span className="truncate">{doc.title}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  <FileText className="h-12 w-12 mx-auto mb-3 text-gray-500" />
+                  <p>
+                    {documentFilter
+                      ? 'No documents found matching your filter.'
+                      : 'No documents available. Upload a PDF first.'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-[#565869]">
+              <button
+                onClick={() => {
+                  setShowDocumentModal(false);
+                  setShowUploadModal(true);
+                }}
+                className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-[#565869] hover:bg-[#4a4c5a] rounded-lg text-white transition-colors"
+              >
+                <Upload className="h-4 w-4" />
+                <span>Upload New PDF</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -480,4 +557,3 @@ const UserDashboard = () => {
 };
 
 export default UserDashboard;
-
