@@ -16,6 +16,7 @@ export const API_ENDPOINTS = {
   FILE_QUERY: 'filesearch/query/',
   FILE_STORES_LIST: 'filesearch/stores/list/',
   FILE_STORES_LIST_FILTER: 'filesearch/stores/list-filter/',
+  FILE_STORE_DETAIL: 'filesearch/stores/', // Use with ID: stores/{id}/
   PERSONALIZATION_PREFERENCES: 'personalization/preferences/',
   EVALUATION_RAGAS: 'evaluation/ragas/',
   EVALUATION_METRICS: 'evaluation/metrics/',

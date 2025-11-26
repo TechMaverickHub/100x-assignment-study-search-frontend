@@ -21,6 +21,8 @@ const UserDashboard = () => {
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
   const [selectedDocumentId, setSelectedDocumentId] = useState(null);
   const [selectedDocumentTitle, setSelectedDocumentTitle] = useState(null);
+  const [documentDetails, setDocumentDetails] = useState(null);
+  const [isLoadingDocumentDetails, setIsLoadingDocumentDetails] = useState(false);
   const [conversations, setConversations] = useState([]);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -28,6 +30,12 @@ const UserDashboard = () => {
   useEffect(() => {
     loadDocumentOptions();
   }, [documentFilter]);
+
+  useEffect(() => {
+    if (selectedDocumentId) {
+      loadDocumentDetails();
+    }
+  }, [selectedDocumentId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -53,6 +61,27 @@ const UserDashboard = () => {
       setDocumentOptions([]);
     } finally {
       setIsLoadingDocuments(false);
+    }
+  };
+
+  const loadDocumentDetails = async (documentId = null) => {
+    const docId = documentId || selectedDocumentId;
+    if (!docId) return;
+    
+    setIsLoadingDocumentDetails(true);
+    try {
+      const data = await fileSearchAPI.getDocumentDetails(docId);
+      const details = data.results || data;
+      setDocumentDetails(details);
+      // Update title if available
+      if (details.title && !selectedDocumentTitle) {
+        setSelectedDocumentTitle(details.title);
+      }
+    } catch (error) {
+      console.error('Error loading document details:', error);
+      setDocumentDetails(null);
+    } finally {
+      setIsLoadingDocumentDetails(false);
     }
   };
 
@@ -219,6 +248,51 @@ const UserDashboard = () => {
               Select Document
             </button>
           )}
+
+          {/* Document Details */}
+          {selectedDocumentId && documentDetails && (
+            <div className="mt-3 p-3 bg-[#2a2b32] rounded-lg text-xs space-y-2">
+              {isLoadingDocumentDetails ? (
+                <div className="flex items-center justify-center py-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-[#10a37f]" />
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Status:</span>
+                    <span className={`font-medium ${
+                      documentDetails.status === 'READY' 
+                        ? 'text-green-400' 
+                        : documentDetails.status === 'UPLOADING'
+                        ? 'text-yellow-400'
+                        : 'text-red-400'
+                    }`}>
+                      {documentDetails.status}
+                    </span>
+                  </div>
+                  {documentDetails.file && (
+                    <div className="pt-2 border-t border-[#565869]">
+                      <a
+                        href={documentDetails.file}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#10a37f] hover:underline truncate block"
+                        title={documentDetails.file}
+                      >
+                        View PDF
+                      </a>
+                    </div>
+                  )}
+                  {documentDetails.created && (
+                    <div className="text-gray-500">
+                      Created: {new Date(documentDetails.created).toLocaleDateString()}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           <button
             onClick={() => setShowUploadModal(true)}
             className="w-full flex items-center space-x-2 px-3 py-2 bg-[#565869] hover:bg-[#4a4c5a] rounded-lg text-white text-sm transition-colors"
@@ -493,11 +567,13 @@ const UserDashboard = () => {
                   {documentOptions.map((doc) => (
                     <button
                       key={doc.id}
-                      onClick={() => {
+                      onClick={async () => {
                         setSelectedDocumentId(doc.id);
                         setSelectedDocumentTitle(doc.title);
                         setShowDocumentModal(false);
                         setDocumentFilter('');
+                        // Load document details with the selected document ID
+                        await loadDocumentDetails(doc.id);
                       }}
                       className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
                         selectedDocumentId === doc.id

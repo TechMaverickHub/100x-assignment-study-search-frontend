@@ -136,6 +136,12 @@ export const fileSearchAPI = {
     const response = await api.get(`${API_ENDPOINTS.FILE_STORES_LIST_FILTER}?${params.toString()}`);
     return response.data;
   },
+
+  // Get document details by ID
+  getDocumentDetails: async (documentId) => {
+    const response = await api.get(`${API_ENDPOINTS.FILE_STORE_DETAIL}${documentId}/`);
+    return response.data;
+  },
 };
 
 // Admin APIs (assuming these exist or will be created)
