@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { fileSearchAPI } from '../services/api';
-import { Upload, Send, FileText, Loader2, Plus, Menu, X, Settings, MessageSquare } from 'lucide-react';
+import { Upload, Send, FileText, Loader2, Plus, Menu, X, Settings, MessageSquare, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const UserDashboard = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -227,51 +229,36 @@ const UserDashboard = () => {
         </div>
 
         {/* User Info */}
-        <div className="p-3 border-t border-[#565869]">
+        <div className="p-3 border-t border-[#565869] space-y-2">
           <div className="flex items-center space-x-2 px-2 py-1.5 text-sm text-gray-400">
             <div className="h-6 w-6 rounded-full bg-[#10a37f] flex items-center justify-center text-white text-xs font-medium">
               {user?.firstName?.[0] || user?.email?.[0] || 'U'}
             </div>
             <span className="truncate">{user?.fullName || user?.firstName || user?.email || 'User'}</span>
           </div>
+          <button
+            onClick={() => {
+              logout();
+              navigate('/login');
+            }}
+            className="w-full flex items-center space-x-2 px-3 py-2 bg-[#565869] hover:bg-[#4a4c5a] rounded-lg text-white text-sm transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Logout</span>
+          </button>
         </div>
       </div>
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-screen">
         {/* Header */}
-        <div className="h-12 bg-[#343541] border-b border-[#565869] flex items-center justify-between px-4">
+        <div className="h-12 bg-[#343541] border-b border-[#565869] flex items-center px-4">
           <button
             onClick={() => setShowSidebar(!showSidebar)}
             className="p-2 hover:bg-[#40414f] rounded-lg transition-colors"
           >
             {showSidebar ? <X className="h-5 w-5 text-gray-400" /> : <Menu className="h-5 w-5 text-gray-400" />}
           </button>
-          <div className="flex items-center space-x-2">
-            {selectedDocumentTitle ? (
-              <button
-                onClick={() => setShowDocumentModal(true)}
-                className="flex items-center space-x-2 px-3 py-1 bg-[#40414f] hover:bg-[#565869] rounded-lg transition-colors"
-              >
-                <FileText className="h-4 w-4 text-gray-400" />
-                <span className="text-sm text-gray-300">{selectedDocumentTitle}</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowDocumentModal(true)}
-                className="px-3 py-1 bg-[#40414f] hover:bg-[#565869] rounded-lg text-sm text-gray-300 transition-colors"
-              >
-                Select Document
-              </button>
-            )}
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="p-2 hover:bg-[#40414f] rounded-lg transition-colors"
-              title="Upload PDF"
-            >
-              <Upload className="h-5 w-5 text-gray-400" />
-            </button>
-          </div>
         </div>
 
         {/* Messages */}
