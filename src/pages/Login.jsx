@@ -59,17 +59,17 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100">
-      <div className="card w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-[#343541]">
+      <div className="bg-white rounded-lg p-8 w-full max-w-md border border-gray-200 shadow-2xl">
         <div className="text-center mb-8">
-          <BookOpen className="h-12 w-12 text-primary-600 mx-auto mb-4" />
+          <BookOpen className="h-12 w-12 text-[#10a37f] mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-gray-900">StudySearch</h1>
           <p className="text-gray-600 mt-2">RAG-Powered Study Assistant</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
-            <div className="flex items-center space-x-2 p-3 bg-red-50 text-red-800 rounded-lg text-sm">
+            <div className="flex items-center space-x-2 p-3 bg-red-50 text-red-800 rounded-lg text-sm border border-red-200">
               <AlertCircle className="h-5 w-5 flex-shrink-0" />
               <span>{error}</span>
             </div>
@@ -84,7 +84,7 @@ const Login = () => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="input-field"
+              className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-[#10a37f] focus:border-transparent outline-none"
               placeholder="Enter your email"
               required
               disabled={isLoading}
@@ -100,7 +100,7 @@ const Login = () => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="input-field"
+              className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-[#10a37f] focus:border-transparent outline-none"
               placeholder="Enter your password"
               required
               disabled={isLoading}
