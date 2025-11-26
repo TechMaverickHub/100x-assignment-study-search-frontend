@@ -284,22 +284,22 @@ const UserDashboard = () => {
               </div>
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto px-4 py-8">
+            <div className="max-w-3xl mx-auto px-6 py-8 pl-8">
               {messages.map((message) => (
                 <div
                   key={message.id}
                   className={`message-${message.role} py-6`}
                 >
-                  <div className="flex items-start space-x-4 max-w-3xl mx-auto">
+                  <div className="flex items-start space-x-4">
                     <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
                       message.role === 'user' ? 'bg-[#10a37f]' : 'bg-[#19c37d]'
                     }`}>
                       {message.role === 'user' ? (
-                        <span className="text-white text-sm font-medium">
+                        <span className="text-white text-sm font-medium leading-none">
                           {user?.firstName?.[0] || user?.email?.[0] || 'U'}
                         </span>
                       ) : (
-                        <span className="text-white text-lg">AI</span>
+                        <span className="text-white text-sm font-semibold leading-none">AI</span>
                       )}
                     </div>
                     <div className="flex-1">
@@ -329,11 +329,11 @@ const UserDashboard = () => {
               ))}
               {isLoading && (
                 <div className="message-assistant py-6">
-                  <div className="flex items-start space-x-4 max-w-3xl mx-auto">
+                  <div className="flex items-start space-x-4">
                     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#19c37d] flex items-center justify-center">
-                      <span className="text-white text-lg">AI</span>
+                      <span className="text-white text-sm font-semibold leading-none">AI</span>
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 flex items-center">
                       <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
                     </div>
                   </div>
@@ -352,7 +352,7 @@ const UserDashboard = () => {
                 Please select a document from the sidebar to start chatting.
               </div>
             )}
-            <form onSubmit={handleQuery} className="relative">
+            <form onSubmit={handleQuery} className="relative flex items-end">
               <textarea
                 ref={textareaRef}
                 value={query}
@@ -362,14 +362,14 @@ const UserDashboard = () => {
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder={selectedDocumentId ? "Message StudySearch..." : "Select a document first..."}
-                className="w-full px-4 py-3 pr-12 bg-[#40414f] border border-[#565869] rounded-lg text-gray-100 placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-transparent max-h-[200px]"
+                className="w-full px-4 py-3 pr-14 bg-[#40414f] border border-[#565869] rounded-lg text-gray-100 placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-transparent max-h-[200px]"
                 disabled={isLoading || !selectedDocumentId}
                 rows={1}
               />
               <button
                 type="submit"
                 disabled={isLoading || !query.trim() || !selectedDocumentId}
-                className="absolute right-2 bottom-2 p-2 bg-[#10a37f] hover:bg-[#0d8f6e] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                className="absolute right-2 bottom-2.5 p-2 bg-[#10a37f] hover:bg-[#0d8f6e] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center justify-center"
               >
                 {isLoading ? (
                   <Loader2 className="h-5 w-5 animate-spin text-white" />
